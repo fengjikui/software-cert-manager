@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#faf9f6" />
+    <title>证书汇总 · 证书管理台</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 4H22V8H8V26H4Z' fill='%23c7000b'/%3E%3Cpath d='M11 11H27V15H15V29H11ZM18 18H27V22H18Z' fill='%23292a28'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <a class="skip" href="#main">跳到工作区</a>
+    <header class="masthead">
+      <div class="nav-inner">
+        <a
+          class="brand"
+          href="#main"
+          aria-label="证书管理台，前往证书汇总"
+          data-home
+        >
+          <svg viewBox="0 0 31 32" width="31" height="32" aria-hidden="true">
+            <path d="M4 4H22V8H8V26H4Z" fill="#c7000b" />
+            <path d="M11 11H27V15H15V29H11ZM18 18H27V22H18Z" fill="#292a28" />
+          </svg>
+          <strong>证书管理台</strong>
+        </a>
+        <nav aria-label="工作空间">
+          <button data-tab="summary">证书汇总</button
+          ><button data-tab="issue">发放管理</button
+          ><button data-tab="depart">部门导出</button>
+        </nav>
+        <div class="nav-end">
+          <button data-act="guide">使用指南</button><span>本地工作空间</span>
+        </div>
+      </div>
+    </header>
+    <main id="main" tabindex="-1"></main>
+    <input id="file" type="file" accept=".xlsx" hidden />
+    <dialog id="dialog"></dialog>
+    <div id="notice" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>
