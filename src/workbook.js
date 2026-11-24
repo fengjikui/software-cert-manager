@@ -12,7 +12,7 @@ import {
 
 const pad = (n) => String(n).padStart(2, "0");
 const text = (v) => String(v ?? "").trim();
-const cleanHeader = (v) => normalize(v).split("/")[0].replaceAll("零层", "0层");
+export const cleanHeader = (v) => normalize(v).split("/")[0].replaceAll("零层", "0层");
 const populated = (row) =>
   row?.some((v) => v !== null && v !== undefined && v !== "");
 const sheetCodes = ["00", "01", "02", "03"];
@@ -131,6 +131,8 @@ function readRules(tab) {
   const subhead = (tab.rows[start + 1] || []).some((v) =>
     /^方式/.test(normalize(v)),
   );
+  tab.headerRow = start;
+  if (subhead) tab.subheaderRow = start + 1;
   const count = Math.max(
     tab.rows[start].length,
     subhead ? tab.rows[start + 1].length : 0,
@@ -251,6 +253,39 @@ export function openWorkbook(bytes) {
     history,
     exams,
     rules: readRules(tabs["03"]),
+  };
+}
+
+export function workbookTable(data, code) {
+  const { sheet, rows, headerRow, subheaderRow } = data.tabs[code];
+  if (headerRow == null)
+    return { columns: code === "00" ? headers : [], rows: [] };
+
+  const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
+  const afterHeader = subheaderRow ?? headerRow;
+  let group = "";
+  const columns = Array.from({ length: width }, (_, index) => {
+    const heading = text(rows[headerRow][index]);
+    const subheading = text(rows[subheaderRow]?.[index]);
+    if (heading) group = heading;
+    if (subheading) return [group, subheading].filter(Boolean).join(" / ");
+    return heading || "列 " + XLSX.utils.encode_col(index);
+  });
+  const letters = columns.map((_, index) => XLSX.utils.encode_col(index));
+  return {
+    columns,
+    rows: rows.flatMap((row, index) => {
+      if (index <= afterHeader || !populated(row)) return [];
+      const line = index + 1;
+      const order = [];
+      const values = letters.map((letter, index) => {
+        const cell = sheet[letter + line];
+        if (cell?.v == null) return "";
+        if (typeof cell.v === "number") order[index] = cell.v;
+        return XLSX.utils.format_cell(cell);
+      });
+      return [{ line, values, order }];
+    }),
   };
 }
 

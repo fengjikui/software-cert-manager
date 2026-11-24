@@ -55,8 +55,7 @@ function compareCertificates(a, b) {
   return a.id.localeCompare(b.id) || a.rank - b.rank || a.lang.localeCompare(b.lang);
 }
 
-function compareAwards(baseline, records) {
-  if (!baseline.length) return null;
+export function compareAwards(baseline, records) {
   const previous = new Map(baseline.map((r) => [certKey(r), r]));
   const items = [];
   const counts = { added: 0, removed: 0, dateChanged: 0 };
@@ -200,5 +199,6 @@ export function summarize(data, baseline, runTime) {
     };
   });
   records.sort(compareCertificates);
-  return { records, departments, unmatched, changes: compareAwards(data.baseline, records) };
+  const changes = data.baseline.length ? compareAwards(data.baseline, records) : null;
+  return { records, departments, unmatched, changes };
 }

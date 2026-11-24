@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#faf9f6" />
+    <meta name="theme-color" content="#f6f4f5" />
     <title>证书汇总 · 证书管理台</title>
     <link
       rel="icon"
@@ -21,23 +21,26 @@
           data-home
         >
           <svg viewBox="0 0 31 32" width="31" height="32" aria-hidden="true">
-            <path d="M4 4H22V8H8V26H4Z" fill="#c7000b" />
-            <path d="M11 11H27V15H15V29H11ZM18 18H27V22H18Z" fill="#292a28" />
+            <path d="M4 4H22V8H8V26H4Z" fill="var(--nav-accent)" />
+            <path d="M11 11H27V15H15V29H11ZM18 18H27V22H18Z" fill="currentColor" />
           </svg>
           <strong>证书管理台</strong>
         </a>
         <nav aria-label="工作空间">
           <button data-tab="summary">证书汇总</button
+          ><button data-tab="ledger">数据台账</button
           ><button data-tab="issue">发放管理</button
           ><button data-tab="depart">部门导出</button>
         </nav>
         <div class="nav-end">
-          <button data-act="guide">使用指南</button><span>本地工作空间</span>
+          <button data-act="guide">使用指南</button>
         </div>
       </div>
     </header>
     <main id="main" tabindex="-1"></main>
     <input id="file" type="file" accept=".xlsx" hidden />
+    <input id="revision-previous" type="file" accept=".xlsx" hidden />
+    <input id="revision-latest" type="file" accept=".xlsx" hidden />
     <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
     <div id="notice" role="status" aria-live="polite"></div>
     <script type="module" src="/src/app.js"></script>

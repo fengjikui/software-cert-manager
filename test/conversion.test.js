@@ -8,8 +8,10 @@ import {
   exportFull,
   departmentRows,
   exportDepartment,
+  workbookTable,
 } from "../src/workbook.js";
 import { cellsOf, departmentKey, summarize } from "../src/engine.js";
+import { resultTable, selectRows } from "../src/ledger.js";
 
 const dir = new URL(
   "../outputs/01a1e9d3-62a5-7b33-a92a-ac33e674e531/",
@@ -23,6 +25,46 @@ const time = "2026-11-17 10:00:00";
 const later = "2026-11-24 09:00:00";
 const first = (data) => summarize(data, data.baseline, time);
 const ordered = (rows) => rows.map((r) => JSON.stringify(r)).sort();
+
+test("台账保留原表行号、工号显示格式和规则分组表头", () => {
+  const source = openWorkbook(input);
+  const { sheet } = source.tabs["01"];
+  Object.assign(sheet.A2, { v: 1, t: "n", z: "000000" });
+  delete sheet.A2.w;
+  assert.equal(workbookTable(source, "00").rows.length, 0);
+  const history = workbookTable(source, "01");
+  assert.equal(history.rows[0].values[0], "000001");
+  assert.equal(history.rows[0].line, 2);
+  const exams = workbookTable(source, "02");
+  assert.equal(exams.rows.length, source.exams.length);
+
+  const rulesName = source.tabs["03"].name;
+  source.book.Sheets[rulesName] = XLSX.utils.aoa_to_sheet([
+    ["证书", "科目一", null, "科目二", "科目三", "科目四"],
+    ["", "方式1", "方式2", "方式1", "方式1", "方式1"],
+    ["华为软件开发能力认证证书（入门级，C++）", "考试 1", "考试 2"],
+  ]);
+  const twoHeaderRows = openWorkbook(XLSX.write(source.book, { bookType: "xlsx", type: "array" }));
+  const rules = workbookTable(twoHeaderRows, "03");
+  assert.deepEqual(rules.columns.slice(0, 3), ["证书", "科目一 / 方式1", "科目一 / 方式2"]);
+  assert.deepEqual(rules.rows.map((row) => row.line), [3]);
+});
+
+test("台账组合过滤并按级别或日期排序，保留用于导出的记录顺序", () => {
+  const source = openWorkbook(input);
+  const { rows } = resultTable(first(source).records);
+  const view = {
+    query: "林晓",
+    filters: new Map([[0, "000001"], [3, "c++"]]),
+    sort: { column: 2, direction: 1 },
+  };
+  assert.deepEqual(selectRows(rows, view).map((r) => r.values[2]), ["入门级", "工作级", "专业级"]);
+  view.sort = { column: 4, direction: -1 };
+  assert.deepEqual(selectRows(rows, view).map((r) => r.line), [4, 3, 2]);
+  assert.deepEqual(rows.slice(0, 3).map((r) => r.line), [2, 3, 4]);
+  view.filters.set(4, "1999");
+  assert.equal(selectRows(rows, view).length, 0);
+});
 
 test("首次汇总的全部 12 列与人工核对用样例逐格一致", () => {
   const data = openWorkbook(input),

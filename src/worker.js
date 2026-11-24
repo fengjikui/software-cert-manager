@@ -1,7 +1,15 @@
-import { openWorkbook, exportFull, exportDepartment } from "./workbook.js";
+import { openWorkbook, exportFull, exportDepartment, workbookTable } from "./workbook.js";
 import { summarize, departmentKey } from "./engine.js";
+import { previewRevision, revisionRecords } from "./revision.js";
 
-let data, result;
+let data, result, revision;
+function revisionWorkbook(bytes, label) {
+  try {
+    return openWorkbook(bytes);
+  } catch (error) {
+    throw new Error(label + "：" + error.message);
+  }
+}
 function summary() {
   const departments = new Map();
   for (const row of result.departments.values()) {
@@ -46,6 +54,21 @@ self.onmessage = ({ data: msg }) => {
           data.rules.length,
         ],
       };
+    } else if (msg.action === "revision-review") {
+      revision = null;
+      const previous = revisionWorkbook(msg.previous, "上次正式汇总");
+      const latest = revisionWorkbook(msg.latest, "本次客户工作簿");
+      const preview = previewRevision(previous, latest, msg.time);
+      revision = { latest, preview };
+      value = preview.report;
+    } else if (msg.action === "revision-export") {
+      if (!revision || !msg.scope || (revision.preview.report.issuedMissing && !msg.issued))
+        throw new Error("请先完成预览并确认导出范围与发放记录。");
+      const bytes = exportFull(revision.latest, revisionRecords(revision.preview, msg.statusSource));
+      self.postMessage({ value: bytes.buffer }, [bytes.buffer]);
+      return;
+    } else if (msg.action === "table") {
+      value = workbookTable(data, msg.code);
     } else if (msg.action === "run") {
       result = summarize(data, result?.records ?? data.baseline, msg.time);
       value = summary();
