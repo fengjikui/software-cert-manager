@@ -28,6 +28,7 @@ test("首次汇总的全部 12 列与人工核对用样例逐格一致", () => {
   const data = openWorkbook(input),
     result = first(data);
   assert.equal(data.baseline.length, 0);
+  assert.equal(result.changes, null);
   const actual = openWorkbook(exportFull(data, result.records));
   assert.deepEqual(actual.book.SheetNames, expected.book.SheetNames);
   const values = (d) =>
@@ -53,6 +54,7 @@ test("重新导入保留标记，只在获得日期改变时刷新生成时间",
   const bytes = exportFull(data, original.records),
     next = openWorkbook(bytes);
   const unchanged = summarize(next, next.baseline, later);
+  assert.deepEqual(unchanged.changes.items, []);
   const select = (result) =>
     result.records.find((r) => r.id === "000001" && r.rank === 1);
   assert.equal(select(unchanged).generated, time);
@@ -70,6 +72,50 @@ test("重新导入保留标记，只在获得日期改变时刷新生成时间",
     (p) => !["xl/worksheets/sheet1.xml", "xl/styles.xml"].includes(p),
   ))
     assert.deepEqual(prev[part], after[part], part);
+});
+
+test("重算与导入时的 00 对照，区分新增、移出和日期调整，并保留旧表行号", () => {
+  const data = openWorkbook(input);
+  const original = first(data).records;
+  const [added, dateChanged, ...others] = original;
+  const prior = [
+    { ...dateChanged, date: "2026-11-09", status: "已发放" },
+    ...others,
+    { ...added, lang: "Go", status: "已发放" },
+  ];
+  const next = openWorkbook(exportFull(data, prior));
+  const result = summarize(next, next.baseline, later);
+  const report = result.changes;
+  assert.deepEqual(report.counts, { added: 1, removed: 1, dateChanged: 1 });
+  assert.equal(report.issuedCount, 2);
+  assert.deepEqual(report.items.map((i) => i.wasIssued), [true, true, false]);
+  const moved = report.items.find((i) => i.kind === "removed");
+  assert.deepEqual([moved.name, moved.lang, moved.sourceRow, moved.afterDate],
+    [added.name, "Go", prior.length + 1, undefined]);
+  const changed = report.items.find((i) => i.kind === "dateChanged");
+  assert.deepEqual([changed.sourceRow, changed.beforeDate, changed.afterDate],
+    [2, "2026-11-09", dateChanged.date]);
+  assert.equal(report.items[2].beforeDate, undefined);
+
+  result.records.forEach((r) => { r.status = "未发放"; });
+  assert.deepEqual(summarize(next, result.records, later).changes, report);
+  const saved = openWorkbook(exportFull(next, result.records));
+  assert.deepEqual(first(saved).changes.items, []);
+});
+
+test("精简旧表仅有工号、证书名称和获得日期时，仍可按工号定位移出的证书", () => {
+  const data = openWorkbook(input);
+  const sheet = data.tabs["00"].name;
+  data.book.Sheets[sheet] = XLSX.utils.aoa_to_sheet([
+    ["证书获得日期", "证书名称", "工号"], [],
+    ["2026-10-01", "华为软件开发能力认证证书（工作级，Go）", "000042"],
+  ]);
+  const next = openWorkbook(XLSX.write(data.book, { type: "array", bookType: "xlsx" }));
+  const changes = first(next).changes;
+  assert.deepEqual(changes.counts, { added: 10, removed: 1, dateChanged: 0 });
+  assert.equal(changes.issuedCount, 0);
+  const removed = changes.items.find((i) => i.kind === "removed");
+  assert.deepEqual([removed.id, removed.name, removed.sourceRow], ["000042", "", 3]);
 });
 
 test("按员工最新部门导出选中的工作表，原始部门列和工号保留", () => {

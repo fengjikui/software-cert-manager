@@ -82,7 +82,7 @@ function tab(book, code) {
   return { name, sheet, rows };
 }
 
-function readTable(tab, fields, handler, empty = false) {
+function readTable(tab, fields, handler, empty = false, optional = {}) {
   const start = tab.rows.findIndex(populated);
   if (start < 0 && empty) return [];
   const names = (tab.rows[start] || []).map(cleanHeader);
@@ -91,6 +91,10 @@ function readTable(tab, fields, handler, empty = false) {
     cols[field] = names.findIndex((n) => aliases.includes(n));
     if (cols[field] < 0)
       throw new Error(tab.name + " 缺少「" + aliases[0] + "」列。");
+  }
+  for (const [field, aliases] of Object.entries(optional)) {
+    const col = names.findIndex((n) => aliases.includes(n));
+    if (col >= 0) cols[field] = col;
   }
   tab.headerRow = start;
   tab.idCol = cols.id;
@@ -222,20 +226,19 @@ export function openWorkbook(bytes) {
     tabs["00"],
     { id: ["工号"], title: ["证书名称"], date: ["证书获得日期"] },
     (raw, row) => {
-      const names = tabs["00"].rows[tabs["00"].headerRow].map(cleanHeader),
-        values = tabs["00"].rows[row - 1];
-      const generated = values[names.indexOf("生成时间")];
+      const location = "00 第 " + row + " 行";
       return {
         id: raw.id,
-        ...parseCertificate(raw.title, "00 第 " + row + " 行"),
-        date: stamp(raw.date, epoch, "00 第 " + row + " 行").slice(0, 10),
-        status: text(values[names.indexOf("证书发放状态")]),
-        generated: generated
-          ? stamp(generated, epoch, "00 第 " + row + " 行")
-          : "",
+        name: text(raw.name),
+        row,
+        ...parseCertificate(raw.title, location),
+        date: stamp(raw.date, epoch, location).slice(0, 10),
+        status: text(raw.status),
+        generated: raw.generated ? stamp(raw.generated, epoch, location) : "",
       };
     },
     true,
+    { name: person.name, status: ["证书发放状态"], generated: ["生成时间"] },
   );
   if (new Set(baseline.map(certKey)).size !== baseline.length)
     throw new Error("00 中有重复的工号、级别和语言组合，请先合并重复记录。");

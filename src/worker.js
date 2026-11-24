@@ -21,6 +21,7 @@ function summary() {
   });
   return {
     records: result.records,
+    changes: result.changes,
     unmatched: result.unmatched,
     departments: [...departments.values()].sort((a, b) =>
       a.label.localeCompare(b.label, "zh"),

@@ -84,9 +84,10 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => box.classList.remove("visible"), 4500);
 }
-function openDialog(title, body) {
+function openDialog(title, body, className = "") {
+  dialog.className = className;
   dialog.innerHTML =
-    '<div class="dialog-head"><h2>' +
+    '<div class="dialog-head"><h2 id="dialog-title" tabindex="-1">' +
     esc(title) +
     '</h2><button class="icon-btn" aria-label="关闭" data-act="close">' +
     i("x") +
@@ -269,6 +270,64 @@ function tableContent() {
   );
 }
 let rowIndex = new Map();
+const changeLabels = { added: "新增", removed: "移出", dateChanged: "日期调整" };
+let changePage = 0;
+function changeSummary(changes) {
+  if (!changes) return "";
+  if (!changes.items.length)
+    return '<p class="change-summary unchanged">对照原 00 表，证书无新增或移出，获得日期无变化。</p>';
+  const totals = Object.entries(changeLabels)
+    .map(([key, label]) => label + " " + changes.counts[key])
+    .join(" · ");
+  const issued = changes.issuedCount ? "，其中 " + changes.issuedCount + " 张原已发放" : "";
+  return '<div class="change-summary"><div><b>与原 00 表对照</b><span>' + totals + issued +
+    '</span></div>' + button("changes", "查看变更", "arrow-up-right", "sample-link") + "</div>";
+}
+function changeItem(item) {
+  let dates;
+  if (item.kind === "dateChanged") dates = item.beforeDate + " → " + item.afterDate;
+  else if (item.kind === "removed") dates = "原获得日期 " + item.beforeDate;
+  else dates = "本次获得日期 " + item.afterDate;
+  const location = item.sourceRow
+    ? "<span>原 00 表第 " + esc(item.sourceRow) + " 行</span>"
+    : "";
+  return `<li><div><b>${esc([item.name, item.id].filter(Boolean).join("  ·  "))}</b>
+    <span>${esc(item.lang)}  ·  ${levels[item.rank]}${item.wasIssued ? "  ·  原已发放" : ""}</span>
+    <small><span>${esc(dates)}</span>${location}</small></div><strong>${changeLabels[item.kind]}</strong></li>`;
+}
+function updateChangeList() {
+  const { items, issuedCount } = state.result.changes;
+  const count = dialog.querySelector("#issued-only").checked ? issuedCount : items.length;
+  // The worker sorts previously issued certificates first.
+  const pages = Math.ceil(count / pageSize);
+  const first = changePage * pageSize;
+  const slice = items.slice(first, Math.min(first + pageSize, count));
+  dialog.querySelector("#change-count").textContent = count + " 条变更";
+  dialog.querySelector(".change-list").innerHTML = slice.map(changeItem).join("");
+  const pager = dialog.querySelector(".pager");
+  pager.hidden = pages < 2;
+  pager.querySelector("span").textContent = (changePage + 1) + " / " + pages;
+  pager.querySelector('[data-act="change-prev"]').disabled = changePage === 0;
+  pager.querySelector('[data-act="change-next"]').disabled = changePage + 1 >= pages;
+}
+function showChanges() {
+  const { issuedCount } = state.result.changes;
+  changePage = 0;
+  openDialog("重算变更",
+    `<p class="change-intro">对照导入时的 00 表，原已发放的证书优先显示。</p>
+    <div class="change-tools"><label><input id="issued-only" type="checkbox" ${issuedCount ? "" : "disabled"}>
+    只看原已发放（${issuedCount}）</label><small id="change-count" aria-live="polite"></small></div>
+    <ul class="change-list"></ul><div class="pager" hidden>
+    ${button("change-prev", "上一页", "chevron-left", "tiny")}<span aria-live="polite"></span>
+    ${button("change-next", "下一页", "chevron-right", "tiny")}</div>`, "changes-dialog");
+  updateChangeList();
+}
+function turnChangePage(step) {
+  changePage += step;
+  updateChangeList();
+  dialog.scrollTop = 0;
+  dialog.querySelector("#dialog-title").focus({ preventScroll: true });
+}
 function resultPanel() {
   const res = state.result;
   const empty =
@@ -301,7 +360,8 @@ function resultPanel() {
     ) +
     "</div>" +
     (res
-      ? (res.unmatched
+      ? (state.tab === "summary" ? changeSummary(res.changes) : "") +
+        (res.unmatched
           ? '<p class="warning">' +
             i("circle-alert") +
             "有 " +
@@ -612,10 +672,13 @@ function detail(index) {
   );
 }
 const actions = {
+  changes: showChanges,
+  "change-prev": () => turnChangePage(-1),
+  "change-next": () => turnChangePage(1),
   guide: () =>
     openDialog(
       "使用指南",
-      '<ol class="instructions"><li><b>导入完整工作簿</b><p>准备名称以 00、01、02、03 开头的四张表。首次汇总的 00 可完全空白。</p></li><li><b>汇总并核对</b><p>点击「开始汇总」。同一语言在同一天凑齐多个级别时取最高级，点击结果行右侧的箭头可查看原始记录。</p></li><li><b>标记并下载</b><p>在「发放管理」粘贴工号，核对匹配数量后标记。下载完整工作簿保存结果，后续可再次导入。</p></li><li><b>按部门导出</b><p>选择所属部门和工作表，下载该部门的记录。</p></li></ol>',
+      '<ol class="instructions"><li><b>导入完整工作簿</b><p>准备名称以 00、01、02、03 开头的四张表。首次汇总的 00 可完全空白。</p></li><li><b>汇总并核对</b><p>点击「开始汇总」。每行的「详情」可查看授予依据。已有 00 记录时，可核对本次新增、移出和获得日期调整的证书。</p></li><li><b>标记并下载</b><p>在「发放管理」粘贴工号，核对匹配数量后标记。下载完整工作簿保存结果，后续可再次导入。</p></li><li><b>按部门导出</b><p>选择所属部门和工作表，下载该部门的记录。</p></li></ol>',
     ),
   close: () => dialog.close(),
   confirm: () => {
@@ -696,6 +759,12 @@ document.addEventListener("click", (e) => {
   } else if (btn.hasAttribute("data-detail"))
     detail(Number(btn.dataset.detail));
   else actions[btn.dataset.act]?.();
+});
+dialog.addEventListener("change", (e) => {
+  if (e.target.id === "issued-only") {
+    changePage = 0;
+    updateChangeList();
+  }
 });
 dialog.addEventListener("click", (e) => {
   if (e.target === dialog) {

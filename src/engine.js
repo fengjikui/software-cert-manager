@@ -51,6 +51,41 @@ export const cellsOf = (r) => [
   r.generated,
 ];
 
+function compareCertificates(a, b) {
+  return a.id.localeCompare(b.id) || a.rank - b.rank || a.lang.localeCompare(b.lang);
+}
+
+function compareAwards(baseline, records) {
+  if (!baseline.length) return null;
+  const previous = new Map(baseline.map((r) => [certKey(r), r]));
+  const items = [];
+  const counts = { added: 0, removed: 0, dateChanged: 0 };
+  let issuedCount = 0;
+  function add(kind, before, after) {
+    const { id, rank, lang } = after ?? before;
+    const wasIssued = before?.status === "已发放";
+    if (wasIssued) issuedCount++;
+    counts[kind]++;
+    items.push({
+      kind, id, rank, lang, wasIssued,
+      name: after?.name || before?.name || "",
+      beforeDate: before?.date,
+      afterDate: after?.date,
+      sourceRow: before?.row,
+    });
+  }
+  for (const current of records) {
+    const key = certKey(current);
+    const prior = previous.get(key);
+    if (!prior) add("added", undefined, current);
+    else if (prior.date !== current.date) add("dateChanged", prior, current);
+    previous.delete(key);
+  }
+  for (const prior of previous.values()) add("removed", prior, undefined);
+  items.sort((a, b) => Number(b.wasIssued) - Number(a.wasIssued) || compareCertificates(a, b));
+  return { items, counts, issuedCount };
+}
+
 function compileRules(rules) {
   return rules.map((rule) => {
     const subjects = rule.subjects.map((exams) => new Set(exams));
@@ -164,11 +199,6 @@ export function summarize(data, baseline, runTime) {
           : runTime,
     };
   });
-  records.sort(
-    (a, b) =>
-      a.id.localeCompare(b.id) ||
-      a.rank - b.rank ||
-      a.lang.localeCompare(b.lang),
-  );
-  return { records, departments, unmatched };
+  records.sort(compareCertificates);
+  return { records, departments, unmatched, changes: compareAwards(data.baseline, records) };
 }

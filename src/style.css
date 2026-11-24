@@ -733,6 +733,102 @@ dialog {
 dialog::backdrop {
   background: #22232066;
 }
+.change-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 15px 0;
+  padding: 12px 0;
+  border-block: 1px solid var(--line);
+  font-size: 13px;
+}
+.change-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.change-summary span, .unchanged, .change-intro, .change-tools small, .change-list small {
+  color: var(--muted);
+}
+.changes-dialog {
+  width: min(574px, calc(100% - 24px));
+  line-height: 1.35;
+}
+.changes-dialog .dialog-head {
+  margin-bottom: 14px;
+}
+.changes-dialog h2 {
+  font-family: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
+}
+.change-intro, .change-tools, .change-list {
+  font-size: 13px;
+}
+.change-tools, .change-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.change-tools {
+  margin: 14px 0;
+}
+.change-tools label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+.change-tools input {
+  accent-color: var(--brand);
+}
+.change-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.change-list li {
+  border-top: 1px solid var(--line);
+  padding: 13px 0;
+}
+.change-list li:last-child {
+  padding-bottom: 0;
+}
+.change-list li > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.change-list b {
+  font-size: 15px;
+  font-weight: 550;
+}
+.change-list strong {
+  flex: none;
+  font-weight: 550;
+}
+.change-list small, .change-tools small {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.change-list small {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+}
+.change-list small span + span::before {
+  content: "·";
+  margin-right: 7px;
+}
+.changes-dialog .pager {
+  margin-top: 15px;
+  border-top: 1px solid var(--line);
+  padding-bottom: 0;
+}
+.changes-dialog .pager[hidden] {
+  display: none;
+}
 .dialog-head,
 .dialog-actions {
   justify-content: space-between;
